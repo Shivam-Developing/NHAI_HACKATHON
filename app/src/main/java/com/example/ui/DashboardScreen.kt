@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -178,6 +179,190 @@ fun DashboardScreen(
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
                         )
+                    }
+
+                    HorizontalDivider(color = HighDensityBorderAccent)
+
+                    // --- Biometric Match Settings (Relevant Feature Addition) ---
+                    val similarityThreshold by viewModel.similarityThreshold.collectAsState()
+                    val livenessStrictness by viewModel.livenessStrictness.collectAsState()
+                    val activeChallenges by viewModel.activeLivenessChallenges.collectAsState()
+
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "BIOMETRIC SETTINGS",
+                            color = HighDensityPurpleDark,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+
+                        // Similarity Threshold Slider
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Similarity Matches (>=):",
+                                    color = HighDensityTextSecondary,
+                                    fontSize = 11.sp
+                                )
+                                Text(
+                                    text = String.format("%.2f", similarityThreshold),
+                                    color = HighDensityPrimary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                            Slider(
+                                value = similarityThreshold,
+                                onValueChange = { viewModel.updateSimilarityThreshold(it) },
+                                valueRange = 0.50f..0.95f,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = HighDensityPrimary,
+                                    activeTrackColor = HighDensityPrimary,
+                                    inactiveTrackColor = HighDensityContainer
+                                ),
+                                modifier = Modifier.height(18.dp)
+                            )
+                            Text(
+                                text = if (similarityThreshold < 0.65f) "Lenient (Higher false accepts)"
+                                       else if (similarityThreshold > 0.82f) "Ultra-Strict (Higher false rejects)"
+                                       else "Standard Verification Match Check",
+                                color = HighDensityTextSecondary,
+                                fontSize = 9.sp
+                             )
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Liveness Preset Choices
+                        Text(
+                            text = "Liveness Pre-check strictness:",
+                            color = HighDensityTextSecondary,
+                            fontSize = 11.sp
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            com.example.liveness.LivenessStrictness.values().forEach { level ->
+                                val isSelected = livenessStrictness == level
+                                Button(
+                                    onClick = { viewModel.updateLivenessStrictness(level) },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isSelected) HighDensityPrimary else HighDensityContainer,
+                                        contentColor = if (isSelected) Color.White else HighDensityText
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(vertical = 4.dp, horizontal = 2.dp)
+                                ) {
+                                    Text(
+                                        text = level.displayName,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                        Text(
+                            text = when (livenessStrictness) {
+                                com.example.liveness.LivenessStrictness.RELAXED -> "Lighter checks. Ideal for elder subjects or low daylight."
+                                com.example.liveness.LivenessStrictness.STANDARD -> "Balanced blink and Head Euler-rotation angles."
+                                com.example.liveness.LivenessStrictness.PARANOID -> "High precision requirement. Zero tolerance for spoof head movements."
+                            },
+                            color = HighDensityTextSecondary,
+                            fontSize = 9.sp,
+                            lineHeight = 12.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Active Liveness Challenges Checkboxes
+                        Text(
+                            text = "Required Liveness Tasks:",
+                            color = HighDensityTextSecondary,
+                            fontSize = 11.sp
+                        )
+
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            val challenges = com.example.liveness.LivenessChallenge.values()
+                            for (i in challenges.indices step 2) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    // Challenge 1
+                                    val ch1 = challenges[i]
+                                    val isActive1 = activeChallenges.contains(ch1)
+                                    Row(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (isActive1) HighDensityPrimary.copy(alpha = 0.08f) else Color.Transparent)
+                                            .clickable { viewModel.toggleLivenessChallenge(ch1) }
+                                            .padding(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Checkbox(
+                                            checked = isActive1,
+                                            onCheckedChange = { viewModel.toggleLivenessChallenge(ch1) },
+                                            colors = CheckboxDefaults.colors(checkedColor = HighDensityPrimary),
+                                            modifier = Modifier.scale(0.8f)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = ch1.name,
+                                            color = if (isActive1) HighDensityPrimary else HighDensityText,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+
+                                    // Challenge 2 (if exists)
+                                    if (i + 1 < challenges.size) {
+                                        val ch2 = challenges[i + 1]
+                                        val isActive2 = activeChallenges.contains(ch2)
+                                        Row(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(if (isActive2) HighDensityPrimary.copy(alpha = 0.08f) else Color.Transparent)
+                                                .clickable { viewModel.toggleLivenessChallenge(ch2) }
+                                                .padding(6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Checkbox(
+                                                checked = isActive2,
+                                                onCheckedChange = { viewModel.toggleLivenessChallenge(ch2) },
+                                                colors = CheckboxDefaults.colors(checkedColor = HighDensityPrimary),
+                                                modifier = Modifier.scale(0.8f)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = ch2.name,
+                                                color = if (isActive2) HighDensityPrimary else HighDensityText,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                    } else {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     HorizontalDivider(color = HighDensityBorderAccent)

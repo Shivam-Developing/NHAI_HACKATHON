@@ -11,6 +11,7 @@ import com.example.data.sync.SyncManager
 import com.example.data.sync.SyncState
 import com.example.liveness.LivenessChallenge
 import com.example.liveness.LivenessDetector
+import com.example.liveness.LivenessStrictness
 import com.example.recognition.FaceFeatureExtractor
 import com.google.mlkit.vision.face.Face
 import kotlinx.coroutines.Dispatchers
@@ -112,11 +113,64 @@ class FaceAuthViewModel(application: Application) : AndroidViewModel(application
 
     val deviceId: String = syncManager.getDeviceId()
 
+    // Configurable Biometric and Security Parameters
+    private val prefs = application.getSharedPreferences("sync_prefs", android.content.Context.MODE_PRIVATE)
+
+    private val _similarityThreshold = MutableStateFlow(prefs.getFloat("biometric_threshold", 0.70f))
+    val similarityThreshold: StateFlow<Float> = _similarityThreshold.asStateFlow()
+
+    private val _livenessStrictness = MutableStateFlow(
+        try {
+            LivenessStrictness.valueOf(prefs.getString("liveness_strictness", LivenessStrictness.STANDARD.name) ?: LivenessStrictness.STANDARD.name)
+        } catch (e: Exception) {
+            LivenessStrictness.STANDARD
+        }
+    )
+    val livenessStrictness: StateFlow<LivenessStrictness> = _livenessStrictness.asStateFlow()
+
+    private val _activeLivenessChallenges = MutableStateFlow(
+        prefs.getStringSet("active_liveness_challenges", LivenessChallenge.values().map { it.name }.toSet())
+            ?.mapNotNull { 
+                try { LivenessChallenge.valueOf(it) } catch (e: Exception) { null } 
+            }?.toSet() ?: LivenessChallenge.values().toSet()
+    )
+    val activeLivenessChallenges: StateFlow<Set<LivenessChallenge>> = _activeLivenessChallenges.asStateFlow()
+
+    fun updateSimilarityThreshold(threshold: Float) {
+        val clamped = threshold.coerceIn(0.50f, 0.95f)
+        _similarityThreshold.value = clamped
+        prefs.edit().putFloat("biometric_threshold", clamped).apply()
+    }
+
+    fun updateLivenessStrictness(strictness: LivenessStrictness) {
+        _livenessStrictness.value = strictness
+        livenessDetector.setStrictness(strictness)
+        prefs.edit().putString("liveness_strictness", strictness.name).apply()
+    }
+
+    fun toggleLivenessChallenge(challenge: LivenessChallenge) {
+        val current = _activeLivenessChallenges.value.toMutableSet()
+        if (current.contains(challenge)) {
+            if (current.size > 1) {
+                current.remove(challenge)
+            }
+        } else {
+            current.add(challenge)
+        }
+        _activeLivenessChallenges.value = current
+        livenessDetector.setActiveChallenges(current)
+        prefs.edit().putStringSet("active_liveness_challenges", current.map { it.name }.toSet()).apply()
+    }
+
     init {
         // Run clean-up at start
         viewModelScope.launch {
             repository.clearSyncedEvents()
         }
+        // Initialize liveness configurations with active values
+        livenessDetector.setStrictness(_livenessStrictness.value)
+        livenessDetector.setActiveChallenges(_activeLivenessChallenges.value)
+
         // Start the local REST server on port 12345
         localDevServer.start(12345)
         _isLocalServerRunning.value = localDevServer.isRunning()
@@ -326,8 +380,9 @@ class FaceAuthViewModel(application: Application) : AndroidViewModel(application
                                 maxSimilarityFound = similarity
                             }
                             
-                            // Cognitive threshold: 0.70 similarity is highly robust and aligned for neural embeddings
-                            if (similarity >= 0.70f) {
+                            // Cognitive threshold: dynamic user similarity configuration
+                            val requiredSim = _similarityThreshold.value
+                            if (similarity >= requiredSim) {
                                 biometricMatched = true
                                 android.util.Log.i("FaceAuthViewModel", "Identity confirmed with similarity: $similarity. Transitioning to Liveness 2.")
                                 
