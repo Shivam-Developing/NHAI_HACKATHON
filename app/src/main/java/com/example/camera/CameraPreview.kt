@@ -140,23 +140,33 @@ fun CameraPreview(
 
 private fun cropFace(imageProxy: ImageProxy, face: Face): android.graphics.Bitmap? {
     try {
-        var bitmap = imageProxy.toBitmap() ?: return null
-
-        // Support rotations natively by rotating the frame so that coordinates align
+        val originalBitmap = imageProxy.toBitmap() ?: return null
         val rotation = imageProxy.imageInfo.rotationDegrees
-        if (rotation != 0) {
+
+        // Rotate the entire source bitmap to upright orientation first so its dimensions and coordinates
+        // align perfectly with the ML Kit coordinates (which are based on the rotated InputImage).
+        val rotatedBitmap = if (rotation != 0) {
             val matrix = android.graphics.Matrix()
             matrix.postRotate(rotation.toFloat())
-            bitmap = android.graphics.Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+            android.graphics.Bitmap.createBitmap(originalBitmap, 0, 0, originalBitmap.width, originalBitmap.height, matrix, true)
+        } else {
+            originalBitmap
         }
 
         val box = face.boundingBox
-        val left = box.left.coerceIn(0, bitmap.width - 1)
-        val top = box.top.coerceIn(0, bitmap.height - 1)
-        val width = box.width().coerceAtMost(bitmap.width - left).coerceAtLeast(1)
-        val height = box.height().coerceAtMost(bitmap.height - top).coerceAtLeast(1)
+        val left = box.left.coerceIn(0, rotatedBitmap.width - 1)
+        val top = box.top.coerceIn(0, rotatedBitmap.height - 1)
+        val width = box.width().coerceAtMost(rotatedBitmap.width - left).coerceAtLeast(1)
+        val height = box.height().coerceAtMost(rotatedBitmap.height - top).coerceAtLeast(1)
 
-        val cropped = android.graphics.Bitmap.createBitmap(bitmap, left, top, width, height)
+        val cropped = android.graphics.Bitmap.createBitmap(rotatedBitmap, left, top, width, height)
+
+        // Recycle rotatedBitmap if it was newly created and different from originalBitmap
+        if (rotatedBitmap !== originalBitmap) {
+            rotatedBitmap.recycle()
+        }
+        originalBitmap.recycle()
+
         return android.graphics.Bitmap.createScaledBitmap(cropped, 112, 112, true)
     } catch (e: Exception) {
         Log.e("CameraPreview", "Error cropping face: ${e.message}", e)

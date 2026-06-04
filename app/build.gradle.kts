@@ -18,6 +18,10 @@ android {
     versionName = "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    ndk {
+      abiFilters.addAll(setOf("armeabi-v7a", "arm64-v8a"))
+    }
   }
 
   signingConfigs {
@@ -60,6 +64,14 @@ android {
   @Suppress("DEPRECATION")
   aaptOptions {
     noCompress("tflite")
+  }
+  splits {
+    abi {
+      isEnable = false
+      reset()
+      include("armeabi-v7a", "arm64-v8a")
+      isUniversalApk = true
+    }
   }
 }
 

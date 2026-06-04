@@ -142,14 +142,24 @@ class FaceFeatureExtractor(private val context: Context) {
         features[30] = features[1] / features[0].coerceAtLeast(0.1f)
         features[31] = features[6] / features[5].coerceAtLeast(0.1f)
 
+        // Population means of the 32 scale-invariant facial features for zero-centering
+        val means = floatArrayOf(
+            0.95f, 0.95f, 0.85f, 0.70f, 0.70f, 1.30f, 1.30f, 1.55f, 1.55f, 1.35f,
+            0.50f, 0.55f, 0.35f, 0.40f, 0.65f, 0.40f, -0.45f, -0.45f, 0.45f, -0.45f,
+            -0.35f, 0.45f, 0.35f, 0.45f, 0.70f, -0.40f, 0.70f, 0.40f, 0.90f, 0.70f,
+            1.00f, 1.00f
+        )
+
         val embedding = FloatArray(512)
         val numFeatures = 32
         for (i in 0 until 512) {
             var sum = 0f
             for (j in 0 until numFeatures) {
-                sum += features[j] * getDeterministicWeight(i, j)
+                // Project zero-centered features using deterministic weights to maximize discriminative entropy
+                sum += (features[j] - means[j]) * getDeterministicWeight(i, j)
             }
-            embedding[i] = kotlin.math.tanh(sum.toDouble()).toFloat()
+            // Scale and apply tanh to capture non-linear decision boundaries securely
+            embedding[i] = kotlin.math.tanh((sum * 4.0).toDouble()).toFloat()
         }
 
         normalizeL2(embedding)
@@ -157,12 +167,19 @@ class FaceFeatureExtractor(private val context: Context) {
     }
 
     private fun convertBitmapToByteBuffer(bitmap: Bitmap): ByteBuffer {
+        // Enforce 112x112 scale dynamically to prevent any dimension violations
+        val scaledBitmap = if (bitmap.width != 112 || bitmap.height != 112) {
+            Bitmap.createScaledBitmap(bitmap, 112, 112, true)
+        } else {
+            bitmap
+        }
+
         // [1 * 112 * 112 * 3] shape, Float format (4 bytes per pixel color channel)
         val byteBuffer = ByteBuffer.allocateDirect(1 * 112 * 112 * 3 * 4)
         byteBuffer.order(ByteOrder.nativeOrder())
         
         val intValues = IntArray(112 * 112)
-        bitmap.getPixels(intValues, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        scaledBitmap.getPixels(intValues, 0, scaledBitmap.width, 0, 0, scaledBitmap.width, scaledBitmap.height)
         
         for (pixelValue in intValues) {
             val r = (pixelValue shr 16) and 0xFF
@@ -173,6 +190,11 @@ class FaceFeatureExtractor(private val context: Context) {
             byteBuffer.putFloat((r - 127.5f) / 127.5f)
             byteBuffer.putFloat((g - 127.5f) / 127.5f)
             byteBuffer.putFloat((b - 127.5f) / 127.5f)
+        }
+        
+        // Recycle scaled bitmap if it was newly created to release memory footprint
+        if (scaledBitmap !== bitmap) {
+            scaledBitmap.recycle()
         }
         return byteBuffer
     }

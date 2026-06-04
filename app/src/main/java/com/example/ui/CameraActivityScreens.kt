@@ -1,6 +1,7 @@
 package com.example.ui
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -33,135 +35,247 @@ fun EnrollmentScreen(
     val frameCount by viewModel.enrollFrameCount.collectAsState()
     val errorMsg by viewModel.enrollmentError.collectAsState()
 
-    Box(
+    // Smooth laser and pulsing animation
+    val infiniteTransition = rememberInfiniteTransition(label = "scanning")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha"
+    )
+    val glowBrush = Brush.linearGradient(
+        colors = listOf(
+            CyberTeal.copy(alpha = pulseAlpha),
+            ElectricBlue.copy(alpha = pulseAlpha),
+            CyberTeal.copy(alpha = pulseAlpha)
+        )
+    )
+
+    val offsetY by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "laser"
+    )
+
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(DeepSpace)
     ) {
-        // Live camera feed bounding
-        CameraPreview(
-            onFacesDetected = { faces, croppedFace ->
-                viewModel.processEnrollmentFrame(faces, croppedFace)
-            }
-        )
-
-        // Oval guidance overlay
+        // Upper Viewport Zone (58% Height)
         Box(
             modifier = Modifier
-                .fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(width = 240.dp, height = 300.dp)
-                    .border(width = 3.dp, color = HighDensityPrimary, shape = RoundedCornerShape(150.dp))
-            )
-        }
-
-        // Header metadata
-        Column(
-            modifier = Modifier
+                .weight(0.58f)
                 .fillMaxWidth()
-                .padding(top = 40.dp, start = 16.dp, end = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .background(HighDensityPrimary.copy(alpha = 0.9f), shape = RoundedCornerShape(12.dp))
-                    .padding(horizontal = 14.dp, vertical = 6.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Camera,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
+                .padding(top = 40.dp, start = 16.dp, end = 16.dp, bottom = 8.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .border(
+                    width = 3.dp,
+                    brush = glowBrush,
+                    shape = RoundedCornerShape(24.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "BIOMETRIC PROFILE ENROLL",
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    letterSpacing = 1.sp
+                .background(Color.Black)
+        ) {
+            // Live optimized camera feed
+            CameraPreview(
+                onFacesDetected = { faces, croppedFace ->
+                    viewModel.processEnrollmentFrame(faces, croppedFace)
+                }
+            )
+
+            // Inner sweeping laser line
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val sweepY = maxHeight * offsetY
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .offset(y = sweepY)
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    CyberTeal,
+                                    ElectricBlue,
+                                    CyberTeal,
+                                    Color.Transparent
+                                )
+                            )
+                        )
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // High Precision Oval Indicator
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 180.dp, height = 240.dp)
+                        .border(
+                            width = 3.dp,
+                            color = CyberTeal.copy(alpha = 0.8f),
+                            shape = RoundedCornerShape(120.dp)
+                        )
+                )
+            }
 
-            Text(
-                text = "Registering: $enrollName ($enrollUserId)",
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
+            // Top overlay tags (Header metadata inside the viewport, floating unobtrusively)
+            Column(
                 modifier = Modifier
-                    .background(HighDensityPrimary.copy(alpha = 0.9f), shape = RoundedCornerShape(8.dp))
-                    .padding(horizontal = 12.dp, vertical = 4.dp)
-            )
-        }
-
-        // Action controls / error warning overlays
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(bottom = 40.dp, start = 20.dp, end = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            errorMsg?.let { msg ->
-                Card(
-                    shape = RoundedCornerShape(10.dp),
-                    colors = CardDefaults.cardColors(containerColor = CrimsonError.copy(alpha = 0.9f)),
-                    modifier = Modifier.fillMaxWidth()
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.7f), shape = RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
+                    Icon(
+                        imageVector = Icons.Default.Camera,
+                        contentDescription = null,
+                        tint = CyberTeal,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = msg,
+                        text = "NEW BIOMETRIC ENROLLMENT",
                         color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .padding(10.dp)
-                            .fillMaxWidth()
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 1.sp
                     )
                 }
             }
+        }
 
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = CardSlate.copy(alpha = 0.9f)),
-                modifier = Modifier.fillMaxWidth()
+        // Lower Control & Prompt Zone (42% Height) - Dark, spacious, elegant
+        Card(
+            modifier = Modifier
+                .weight(0.42f)
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = CardSlate.copy(alpha = 0.95f)),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "HOLD STEADY INSIDE GUIDE",
-                        color = TextSilver,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
+                        text = "REGISTERING PROFILE",
+                        color = CyberTeal,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 11.sp,
+                        letterSpacing = 1.5.sp
                     )
 
-                    // Frame capture step indicator circles
+                    Text(
+                        text = enrollName.uppercase(),
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Text(
+                        text = "ID Ref: $enrollUserId",
+                        color = TextMuted,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                // Error Message block (Animates into size context)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 40.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    AnimatedVisibility(
+                        visible = errorMsg != null,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        errorMsg?.let { msg ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(CrimsonError.copy(alpha = 0.15f), shape = RoundedCornerShape(10.dp))
+                                    .border(1.dp, CrimsonError.copy(alpha = 0.3f), shape = RoundedCornerShape(10.dp))
+                                    .padding(vertical = 8.dp, horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = CrimsonError,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = msg,
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+
+                    if (errorMsg == null) {
+                        Text(
+                            text = "HOLD STEADY INSIDE WINDOW SCANNER",
+                            color = TextSilver,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+
+                // Enrollment Frame Counts Status
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         for (i in 1..3) {
                             val active = frameCount >= i
                             Box(
                                 modifier = Modifier
-                                    .size(24.dp)
+                                    .size(28.dp)
                                     .clip(CircleShape)
                                     .background(if (active) EmeraldSuccess else Color.DarkGray)
                                     .border(
-                                        width = 1.dp,
+                                        width = 1.5.dp,
                                         color = if (active) Color.White else Color.Transparent,
                                         shape = CircleShape
                                     ),
@@ -172,13 +286,13 @@ fun EnrollmentScreen(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = null,
                                         tint = Color.White,
-                                        modifier = Modifier.size(12.dp)
+                                        modifier = Modifier.size(14.dp)
                                     )
                                 } else {
                                     Text(
                                         text = "$i",
                                         color = TextSilver,
-                                        fontSize = 10.sp,
+                                        fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -187,20 +301,21 @@ fun EnrollmentScreen(
                     }
 
                     Text(
-                        text = "Capturing standard high quality facial landmarks ($frameCount/3)...",
+                        text = "Analyzing high precision biometric landmarks ($frameCount/3)",
                         color = TextMuted,
                         fontSize = 11.sp,
                         textAlign = TextAlign.Center
                     )
+                }
 
-                    Button(
-                        onClick = onBack,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth(0.5f)
-                    ) {
-                        Text("CANCEL", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
+                Button(
+                    onClick = onBack,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f)),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier.fillMaxWidth(0.6f)
+                ) {
+                    Text("CANCEL ENROLL", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 }
             }
         }
@@ -219,167 +334,245 @@ fun VerificationScreen(
     val result by viewModel.verificationResult.collectAsState()
     val authPhase by viewModel.currentAuthPhase.collectAsState()
 
-    Box(
+    // Smooth laser and pulsing animation
+    val infiniteTransition = rememberInfiniteTransition(label = "scanning")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha"
+    )
+
+    // Border color switches beautifully based on phase!
+    val borderColor = when (authPhase) {
+        AuthPhase.LIVENESS_1 -> CyberTeal
+        AuthPhase.IDENTIFICATION -> ElectricBlue
+        AuthPhase.LIVENESS_2 -> NeonPurple
+    }
+
+    val glowBrush = Brush.linearGradient(
+        colors = listOf(
+            borderColor.copy(alpha = pulseAlpha),
+            ElectricBlue.copy(alpha = pulseAlpha),
+            borderColor.copy(alpha = pulseAlpha)
+        )
+    )
+
+    val offsetY by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "laser"
+    )
+
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(DeepSpace)
     ) {
-        // Standard Camera view
-        CameraPreview(
-            onFacesDetected = { faces, croppedFace ->
-                viewModel.processAuthFrame(faces, croppedFace)
-            }
-        )
-
-        // Oval face locator guidelines
+        // Upper Viewport Zone (58% Height) - Completely unobstructed face viewport
         Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(width = 240.dp, height = 300.dp)
-                    .border(width = 3.dp, color = if (authPhase == AuthPhase.IDENTIFICATION) ElectricBlue else HighDensityPrimary, shape = RoundedCornerShape(150.dp))
-            )
-        }
-
-        // Header Info Card
-        Column(
             modifier = Modifier
+                .weight(0.58f)
                 .fillMaxWidth()
-                .padding(top = 40.dp, start = 16.dp, end = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .background(HighDensityPrimary.copy(alpha = 0.9f), shape = RoundedCornerShape(12.dp))
-                    .padding(horizontal = 14.dp, vertical = 6.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Lock,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
+                .padding(top = 40.dp, start = 16.dp, end = 16.dp, bottom = 8.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .border(
+                    width = 3.dp,
+                    brush = glowBrush,
+                    shape = RoundedCornerShape(24.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "BIOMETRIC AUTHENTICATION",
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    letterSpacing = 1.sp
+                .background(Color.Black)
+        ) {
+            // Live optimized camera feed
+            CameraPreview(
+                onFacesDetected = { faces, croppedFace ->
+                    viewModel.processAuthFrame(faces, croppedFace)
+                }
+            )
+
+            // Inner sweeping laser line (Sweeps continuously for cinematic feel)
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val sweepY = maxHeight * offsetY
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .offset(y = sweepY)
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    borderColor,
+                                    ElectricBlue,
+                                    borderColor,
+                                    Color.Transparent
+                                )
+                            )
+                        )
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // High Precision Face Guide Oval (Changes color beautifully based on phase!)
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 180.dp, height = 240.dp)
+                        .border(
+                            width = 3.dp,
+                            color = borderColor.copy(alpha = 0.8f),
+                            shape = RoundedCornerShape(120.dp)
+                        )
+                )
+            }
 
-            Text(
-                text = "Authenticating: $authUserName",
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
+            // Unobtrusive Header floating inside scanner window
+            Column(
                 modifier = Modifier
-                    .background(HighDensityPrimary.copy(alpha = 0.9f), shape = RoundedCornerShape(8.dp))
-                    .padding(horizontal = 12.dp, vertical = 4.dp)
-            )
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.7f), shape = RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = borderColor,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "SECURE BIOMETRIC GATE",
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 1.sp
+                    )
+                }
+            }
         }
 
-        // Bottom active challenge prompts & results
-        Column(
+        // Lower Control & Liveness Prompts Zone (42% Height) - Dedicated area so face is NEVER blocked!
+        Card(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
+                .weight(0.42f)
                 .fillMaxWidth()
-                .padding(bottom = 40.dp, start = 20.dp, end = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = CardSlate.copy(alpha = 0.95f)),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
         ) {
             if (result == null) {
-                // If checking liveness: display current prompt + count bar
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardSlate.copy(alpha = 0.95f)),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(18.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(
-                        modifier = Modifier.padding(18.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    // Multi-Phase Stepper Tracker (Pristine visual progress indicators)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Multi-Phase Stepper View
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            listOf(
-                                AuthPhase.LIVENESS_1 to "1. Liveness",
-                                AuthPhase.IDENTIFICATION to "2. Identity",
-                                AuthPhase.LIVENESS_2 to "3. Confirm"
-                            ).forEach { (phase, label) ->
-                                val active = authPhase == phase
-                                val completed = when(authPhase) {
-                                    AuthPhase.LIVENESS_1 -> false
-                                    AuthPhase.IDENTIFICATION -> phase == AuthPhase.LIVENESS_1
-                                    AuthPhase.LIVENESS_2 -> phase == AuthPhase.LIVENESS_1 || phase == AuthPhase.IDENTIFICATION
-                                }
-                                val bg = when {
-                                    active -> HighDensityPrimary
-                                    completed -> EmeraldSuccess
-                                    else -> Color.DarkGray
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .background(bg, shape = RoundedCornerShape(8.dp))
-                                        .padding(vertical = 6.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = label,
-                                        color = Color.White,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
+                        listOf(
+                            AuthPhase.LIVENESS_1 to "1. Liveness",
+                            AuthPhase.IDENTIFICATION to "2. Identity",
+                            AuthPhase.LIVENESS_2 to "3. Confirm"
+                        ).forEach { (phase, label) ->
+                            val active = authPhase == phase
+                            val completed = when (authPhase) {
+                                AuthPhase.LIVENESS_1 -> false
+                                AuthPhase.IDENTIFICATION -> phase == AuthPhase.LIVENESS_1
+                                AuthPhase.LIVENESS_2 -> phase == AuthPhase.LIVENESS_1 || phase == AuthPhase.IDENTIFICATION
+                            }
+                            val bg = when {
+                                active -> borderColor
+                                completed -> EmeraldSuccess
+                                else -> Color.DarkGray
+                            }
+                            val textCol = when {
+                                active || completed -> Color.White
+                                else -> TextMuted
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(bg, shape = RoundedCornerShape(8.dp))
+                                    .padding(vertical = 5.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = textCol,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
+                                )
                             }
                         }
+                    }
 
-                        Spacer(modifier = Modifier.height(4.dp))
-
+                    // Active Step title & Animate Challenge Instructs
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Text(
                             text = authPhase.title.uppercase(),
-                            color = ElectricBlue,
+                            color = borderColor,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Black,
                             fontSize = 11.sp,
                             letterSpacing = 1.sp
                         )
 
-                        when (authPhase) {
-                            AuthPhase.LIVENESS_1, AuthPhase.LIVENESS_2 -> {
-                                activeChallenge?.let { challenge ->
+                        // Smooth animated slide & fade transition for liveness prompts
+                        AnimatedContent(
+                            targetState = activeChallenge,
+                            transitionSpec = {
+                                (fadeIn(animationSpec = spring()) + slideInVertically { it / 2 })
+                                    .togetherWith(fadeOut(animationSpec = spring()))
+                            },
+                            label = "challenge_animation"
+                        ) { challenge ->
+                            when (authPhase) {
+                                AuthPhase.LIVENESS_1, AuthPhase.LIVENESS_2 -> {
+                                    challenge?.let { ch ->
+                                        Text(
+                                            text = "${ch.emoji} ${ch.instruction.uppercase()}",
+                                            color = Color.White,
+                                            fontSize = 20.sp,
+                                            fontWeight = FontWeight.Black,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                                AuthPhase.IDENTIFICATION -> {
                                     Text(
-                                        text = "${challenge.emoji} ${challenge.instruction.uppercase()}",
+                                        text = "👁️ LOOK DIRECTLY AT THE LENS",
                                         color = Color.White,
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.Black,
                                         textAlign = TextAlign.Center
                                     )
                                 }
-                            }
-                            AuthPhase.IDENTIFICATION -> {
-                                Text(
-                                    text = "👁️ LOOK DIRECTLY AT THE LENS",
-                                    color = Color.White,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Black,
-                                    textAlign = TextAlign.Center
-                                )
                             }
                         }
 
@@ -389,122 +582,150 @@ fun VerificationScreen(
                             fontSize = 12.sp,
                             textAlign = TextAlign.Center
                         )
+                    }
 
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        // Countdown Progress Bar
+                    // Countdown Progress Bar
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         LinearProgressIndicator(
-                            progress = challengeProgress,
-                            color = ElectricBlue,
+                            progress = { challengeProgress },
+                            color = borderColor,
                             trackColor = Color.DarkGray,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(6.dp)
                                 .clip(RoundedCornerShape(3.dp))
                         )
-
                         Text(
-                            text = "Liveness prevents printed photo & screen spoof attacks.",
+                            text = "Liveness prevents printed photos & high-resolution screen spoofing.",
                             color = TextMuted,
                             fontSize = 10.sp,
                             textAlign = TextAlign.Center
                         )
                     }
+
+                    Button(
+                        onClick = onBack,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f)),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                        modifier = Modifier.fillMaxWidth(0.5f)
+                    ) {
+                        Text("CANCEL", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    }
                 }
             } else {
-                // Displays haptic results overlay (verification successfully confirmed OR rejected)
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = when (result) {
-                            is VerificationResult.Match -> EmeraldSuccess.copy(alpha = 0.95f)
-                            else -> CrimsonError.copy(alpha = 0.95f)
-                        }
-                    )
+                // Biometrics Result card view
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            when (result) {
+                                is VerificationResult.Match -> EmeraldSuccess.copy(alpha = 0.1f)
+                                else -> CrimsonError.copy(alpha = 0.1f)
+                            },
+                            shape = RoundedCornerShape(24.dp)
+                        )
+                        .padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        when (val v = result) {
-                            is VerificationResult.Match -> {
+                    when (val v = result) {
+                        is VerificationResult.Match -> {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
                                 Icon(
                                     imageVector = Icons.Default.VerifiedUser,
                                     contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(36.dp)
+                                    tint = EmeraldSuccess,
+                                    modifier = Modifier.size(48.dp)
                                 )
                                 Text(
-                                    text = "BIOMETRIC COSIGN CONFIRMED",
-                                    color = Color.White,
-                                    fontSize = 15.sp,
+                                    text = "SECURE COSIGN CONFIRMED",
+                                    color = EmeraldSuccess,
+                                    fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
+                                    fontFamily = FontFamily.Monospace,
+                                    letterSpacing = 1.sp
                                 )
                                 Text(
-                                    text = "Similarity Match Confidence: ${(v.score * 100).toInt()}%",
-                                    color = Color.White.copy(alpha = 0.9f),
-                                    fontSize = 13.sp,
+                                    text = "Biometric Match Confidence: ${(v.score * 100).toInt()}%",
+                                    color = Color.White,
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
-                            is VerificationResult.Mismatch -> {
+                        }
+                        is VerificationResult.Mismatch -> {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
                                 Icon(
                                     imageVector = Icons.Default.GppBad,
                                     contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(36.dp)
+                                    tint = CrimsonError,
+                                    modifier = Modifier.size(48.dp)
                                 )
                                 Text(
-                                    text = "ACCESS REJECTED",
-                                    color = Color.White,
-                                    fontSize = 15.sp,
+                                    text = "ACCESS DECLARED INVALID",
+                                    color = CrimsonError,
+                                    fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
+                                    fontFamily = FontFamily.Monospace,
+                                    letterSpacing = 1.sp
                                 )
                                 Text(
-                                    text = "Biometric score too low: ${(v.score * 100).toInt()}% match",
-                                    color = Color.White.copy(alpha = 0.9f),
+                                    text = "Biometric similarity score is too low: ${(v.score * 100).toInt()}% match",
+                                    color = Color.White,
                                     fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                            is VerificationResult.Error -> {
-                                Icon(
-                                    imageVector = Icons.Default.Warning,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(36.dp)
-                                )
-                                Text(
-                                    text = "AUTHENTICATION ERROR",
-                                    color = Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                                Text(
-                                    text = v.message,
-                                    color = Color.White.copy(alpha = 0.9f),
-                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
                                     textAlign = TextAlign.Center
                                 )
                             }
-                            null -> {}
                         }
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Button(
-                            onClick = onBack,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = DeepSpace),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.fillMaxWidth(0.6f)
-                        ) {
-                            Text("DONE", fontWeight = FontWeight.Bold)
+                        is VerificationResult.Error -> {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = CrimsonError,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Text(
+                                    text = "VERIFICATION ERROR",
+                                    color = CrimsonError,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    letterSpacing = 1.sp
+                                )
+                                Text(
+                                    text = v.message,
+                                    color = TextSilver,
+                                    fontSize = 13.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
+                        null -> {}
+                    }
+
+                    Button(
+                        onClick = onBack,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = DeepSpace),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(0.6f)
+                    ) {
+                        Text("DONE", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     }
                 }
             }
