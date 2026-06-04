@@ -1,0 +1,6 @@
+{
+  "name": "Datalake Face Auth",
+  "description": "Offline facial recognition and liveness detection on Android. Includes multi-stage liveness tracking (blink, smile, head rotation), local Room DB enrollment storage, and background HTTP status sync queue.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
