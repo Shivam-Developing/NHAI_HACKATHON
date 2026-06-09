@@ -10,7 +10,7 @@
 
 1. [System Architecture](#1-system-architecture)
 2. [Key Features](#2-key-features)
-3. [🎬 Demo Video](#3-demo-video)
+3. [🎬 Demo Video](#3-demo-video-)
 4. [Download & Install APK](#4-download--install-apk)
 5. [Data Lake API Integration](#5-data-lake-api-integration)
 6. [Local Developer REST Server](#6-local-developer-rest-server)
@@ -86,7 +86,7 @@ The application is built on a clean **MVVM** (Model-View-ViewModel) pattern with
 
 ---
 
-## 3. 🎬 Demo Video
+## 3. Demo Video 🎬
 
 > Watch the full end-to-end demonstration of **Datalake Face Auth** — covering worker enrollment, 3-phase liveness challenge, offline face identification, and background sync to the Datalake endpoint.
 
