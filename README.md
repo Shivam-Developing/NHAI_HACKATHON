@@ -667,14 +667,14 @@ app/src/main/java/com/example/
 
 The UI is built entirely with **Jetpack Compose (Material 3)**. There are no XML layouts. All screens observe `StateFlow` from the ViewModel and re-compose reactively.
 
-| File | GitHub Link | Role |
-|---|---|---|
-| `MainActivity.kt` | [`app/src/main/java/com/example/MainActivity.kt`](app/src/main/java/com/example/MainActivity.kt) | Edge-to-edge Compose host. Entry point of the app. Bootstraps the NavHost and applies the Material 3 dark theme. |
-| `DashboardScreen.kt` | [`app/src/main/java/com/example/ui/DashboardScreen.kt`](app/src/main/java/com/example/ui/DashboardScreen.kt) | Home screen. Shows enrolled users, sync status badge, manual sync button, strictness slider, and endpoint URL input. |
-| `CameraActivityScreens.kt` | [`app/src/main/java/com/example/ui/CameraActivityScreens.kt`](app/src/main/java/com/example/ui/CameraActivityScreens.kt) | Enrollment and authentication scanner screens. Renders the face oval overlay, liveness challenge prompts, laser scan animation, and result cards. |
-| `theme/Color.kt` | [`app/src/main/java/com/example/ui/theme/Color.kt`](app/src/main/java/com/example/ui/theme/Color.kt) | Defines the custom color palette: `CyberTeal`, `ElectricBlue`, `CosmicSlate`, `NeonGreen`. |
-| `theme/Theme.kt` | [`app/src/main/java/com/example/ui/theme/Theme.kt`](app/src/main/java/com/example/ui/theme/Theme.kt) | Applies the Material 3 `darkColorScheme` using the custom palette. |
-| `theme/Type.kt` | [`app/src/main/java/com/example/ui/theme/Type.kt`](app/src/main/java/com/example/ui/theme/Type.kt) | Typography scale (heading, body, label styles). |
+| File | Role |
+|---|---|
+| [`MainActivity.kt`](app/src/main/java/com/example/MainActivity.kt) | Edge-to-edge Compose host. Entry point of the app. Bootstraps the NavHost and applies the Material 3 dark theme. |
+| [`DashboardScreen.kt`](app/src/main/java/com/example/ui/DashboardScreen.kt) | Home screen. Shows enrolled users, sync status badge, manual sync button, strictness slider, and endpoint URL input. |
+| [`CameraActivityScreens.kt`](app/src/main/java/com/example/ui/CameraActivityScreens.kt) | Enrollment and authentication scanner screens. Renders the face oval overlay, liveness challenge prompts, laser scan animation, and result cards. |
+| [`theme/Color.kt`](app/src/main/java/com/example/ui/theme/Color.kt) | Custom color palette: `CyberTeal`, `ElectricBlue`, `CosmicSlate`, `NeonGreen`. |
+| [`theme/Theme.kt`](app/src/main/java/com/example/ui/theme/Theme.kt) | Applies the Material 3 `darkColorScheme` using the custom palette. |
+| [`theme/Type.kt`](app/src/main/java/com/example/ui/theme/Type.kt) | Typography scale (heading, body, label styles). |
 
 ---
 
@@ -682,9 +682,9 @@ The UI is built entirely with **Jetpack Compose (Material 3)**. There are no XML
 
 All business logic lives in the ViewModel. UI composables never call the repository or ML directly.
 
-| File | GitHub Link | Role |
-|---|---|---|
-| `FaceAuthViewModel.kt` | [`app/src/main/java/com/example/ui/FaceAuthViewModel.kt`](app/src/main/java/com/example/ui/FaceAuthViewModel.kt) | Central state machine. Manages the 3-phase liveness flow (`LIVENESS_1 → IDENTITY → LIVENESS_2 → VERIFIED`), enrollment capture, face match scoring, sync triggering, and all `StateFlow` emissions consumed by the UI. Owns instances of `FaceFeatureExtractor`, `LivenessDetector`, `SyncManager`, and `FaceAuthRepository`. |
+| File | Role |
+|---|---|
+| [`FaceAuthViewModel.kt`](app/src/main/java/com/example/ui/FaceAuthViewModel.kt) | Central state machine. Manages the 3-phase liveness flow (`LIVENESS_1 → IDENTITY → LIVENESS_2 → VERIFIED`), enrollment capture, face match scoring, sync triggering, and all `StateFlow` emissions. Owns `FaceFeatureExtractor`, `LivenessDetector`, `SyncManager`, and `FaceAuthRepository`. |
 
 ---
 
@@ -692,9 +692,9 @@ All business logic lives in the ViewModel. UI composables never call the reposit
 
 Frames arrive from the device camera and are processed inline before being handed to ML components.
 
-| File | GitHub Link | Role |
-|---|---|---|
-| `CameraPreview.kt` | [`app/src/main/java/com/example/camera/CameraPreview.kt`](app/src/main/java/com/example/camera/CameraPreview.kt) | Composable wrapper around `CameraX`. Sets up `Preview` + `ImageAnalysis` use-cases on a background executor. Configures `ML Kit FaceDetector` with classification (smile probability, eye open probability) and landmark detection enabled. On each frame, invokes `onFacesDetected(faces, bitmap)` callback into the ViewModel. |
+| File | Role |
+|---|---|
+| [`CameraPreview.kt`](app/src/main/java/com/example/camera/CameraPreview.kt) | Composable wrapper around `CameraX`. Sets up `Preview` + `ImageAnalysis` on a background executor. Configures `ML Kit FaceDetector` with smile, eye, and landmark detection. Invokes `onFacesDetected(faces, bitmap)` into the ViewModel on each frame. |
 
 **Data flow from this layer:**
 ```
@@ -712,11 +712,11 @@ Upright Bitmap
 
 ### Layer 4 — AI / ML Inference
 
-| File | GitHub Link | Role |
-|---|---|---|
-| `FaceFeatureExtractor.kt` | [`app/src/main/java/com/example/recognition/FaceFeatureExtractor.kt`](app/src/main/java/com/example/recognition/FaceFeatureExtractor.kt) | Loads `mobilefacenet.tflite` from assets at startup via `Interpreter`. Crops the detected face bounding box, rescales to `112×112`, normalizes pixels to `[-1, 1]`, runs TFLite inference, L2-normalizes the output embedding vector. Falls back to a 512-D geometric landmark projection if TFLite fails. |
-| `mobilefacenet.tflite` | [`app/src/main/assets/mobilefacenet.tflite`](app/src/main/assets/mobilefacenet.tflite) | Pre-trained MobileFaceNet model binary (on-device, no internet needed). Input: `[1, 112, 112, 3]` float tensor. Output: `[1, N]` float embedding vector (dynamically queried at runtime). |
-| `LivenessDetector.kt` | [`app/src/main/java/com/example/liveness/LivenessDetector.kt`](app/src/main/java/com/example/liveness/LivenessDetector.kt) | Evaluates gesture challenges from ML Kit face classification outputs. Checks `eyeOpenProbability`, `smilingProbability`, and `headEulerAngleY` against configurable thresholds for Relaxed / Standard / Paranoid strictness levels. |
+| File | Role |
+|---|---|
+| [`FaceFeatureExtractor.kt`](app/src/main/java/com/example/recognition/FaceFeatureExtractor.kt) | Loads `mobilefacenet.tflite` via `Interpreter`. Crops face bounding box, rescales to `112×112`, normalizes pixels to `[-1, 1]`, runs TFLite inference, L2-normalizes the output embedding. Falls back to 512-D geometric landmark projection if TFLite fails. |
+| [`mobilefacenet.tflite`](app/src/main/assets/mobilefacenet.tflite) | Pre-trained MobileFaceNet model (on-device, no internet). Input: `[1, 112, 112, 3]`. Output: `[1, N]` float embedding (dimension queried dynamically at runtime). |
+| [`LivenessDetector.kt`](app/src/main/java/com/example/liveness/LivenessDetector.kt) | Evaluates gesture challenges from ML Kit outputs: `eyeOpenProbability`, `smilingProbability`, `headEulerAngleY` — against Relaxed / Standard / Paranoid thresholds. |
 
 ---
 
@@ -724,33 +724,33 @@ Upright Bitmap
 
 All persistence goes through the repository. No UI or ViewModel code touches DAOs directly.
 
-| File | GitHub Link | Role |
-|---|---|---|
-| `FaceAuthRepository.kt` | [`app/src/main/java/com/example/data/FaceAuthRepository.kt`](app/src/main/java/com/example/data/FaceAuthRepository.kt) | Single source of truth. Wraps `UserFaceDao` and `SyncEventDao`. Exposes `Flow<List<UserFace>>` and `Flow<List<SyncEvent>>` for reactive UI. Provides suspend functions: `saveUserFace()`, `deleteUserFace()`, `getAllUsers()`, `logAuthEvent()`, `logEnrollmentEvent()`. |
-| `AppDatabase.kt` | [`app/src/main/java/com/example/data/local/AppDatabase.kt`](app/src/main/java/com/example/data/local/AppDatabase.kt) | Room database singleton (`@Database`). Declares two entities: `UserFace` and `SyncEvent`. Registers `FloatArrayConverter` for embedding serialization. |
-| `RoomEntities.kt` | [`app/src/main/java/com/example/data/local/RoomEntities.kt`](app/src/main/java/com/example/data/local/RoomEntities.kt) | Defines `@Entity` data classes: `UserFace` (table: `users_embeddings` — stores `userId`, `name`, `FloatArray` embedding, `enrolledAt`) and `SyncEvent` (table: `sync_events` — stores auth/enrollment records with GPS coordinates, similarity score, sync status). |
-| `RoomDaos.kt` | [`app/src/main/java/com/example/data/local/RoomDaos.kt`](app/src/main/java/com/example/data/local/RoomDaos.kt) | `@Dao` interfaces: `UserFaceDao` (CRUD on embeddings) and `SyncEventDao` (insert, query unsynced, mark synced). |
-| `FaceAuthContentProvider.kt` | [`app/src/main/java/com/example/data/local/FaceAuthContentProvider.kt`](app/src/main/java/com/example/data/local/FaceAuthContentProvider.kt) | Android `ContentProvider` exposing `/users` and `/events` URIs. Enables companion Android apps on the same device to query data via `contentResolver.query()` without needing the REST server. |
+| File | Role |
+|---|---|
+| [`FaceAuthRepository.kt`](app/src/main/java/com/example/data/FaceAuthRepository.kt) | Single source of truth. Wraps `UserFaceDao` + `SyncEventDao`. Exposes reactive `Flow<List<T>>`. Provides `saveUserFace()`, `deleteUserFace()`, `logAuthEvent()`, `logEnrollmentEvent()`. |
+| [`AppDatabase.kt`](app/src/main/java/com/example/data/local/AppDatabase.kt) | Room singleton (`@Database`). Declares `UserFace` and `SyncEvent` entities. Registers `FloatArrayConverter` for embedding serialization. |
+| [`RoomEntities.kt`](app/src/main/java/com/example/data/local/RoomEntities.kt) | `UserFace` entity (`users_embeddings` table) and `SyncEvent` entity (`sync_events` table) with GPS coords, similarity score, sync status. |
+| [`RoomDaos.kt`](app/src/main/java/com/example/data/local/RoomDaos.kt) | `UserFaceDao` (CRUD on embeddings) and `SyncEventDao` (insert, query unsynced, mark synced). |
+| [`FaceAuthContentProvider.kt`](app/src/main/java/com/example/data/local/FaceAuthContentProvider.kt) | Android `ContentProvider` exposing `/users` and `/events` URIs for inter-process access by companion apps. |
 
 ---
 
 ### Layer 6 — Sync & Networking
 
-| File | GitHub Link | Role |
-|---|---|---|
-| `SyncManager.kt` | [`app/src/main/java/com/example/data/sync/SyncManager.kt`](app/src/main/java/com/example/data/sync/SyncManager.kt) | Registers a `ConnectivityManager.NetworkCallback`. When internet is detected, fetches all `synced=false` `SyncEvent` rows from Room and batches them into a single `POST /sync` call via Retrofit. Updates rows to `synced=true` on HTTP 200. Exposes `SyncState` as `StateFlow` (`Idle`, `Syncing`, `Success`, `Error`). |
-| `SyncApiService.kt` | [`app/src/main/java/com/example/data/sync/SyncApiService.kt`](app/src/main/java/com/example/data/sync/SyncApiService.kt) | Retrofit `@Service` interface. Defines `POST /sync` with `SyncPayload` request body and `SyncResponse` return. Moshi handles JSON serialization. |
-| `LocalDevServer.kt` | [`app/src/main/java/com/example/data/sync/LocalDevServer.kt`](app/src/main/java/com/example/data/sync/LocalDevServer.kt) | Lightweight socket-based HTTP server on port `12345`. Handles `GET /api/status`, `GET /api/users`, `GET /api/events`. Emits full CORS headers. Runs on a dedicated background thread started from `FaceAuthViewModel`. |
+| File | Role |
+|---|---|
+| [`SyncManager.kt`](app/src/main/java/com/example/data/sync/SyncManager.kt) | Registers `ConnectivityManager.NetworkCallback`. On internet detected, fetches `synced=false` rows and POSTs to Datalake via Retrofit. Marks synced on HTTP 200. Exposes `SyncState` as `StateFlow`. |
+| [`SyncApiService.kt`](app/src/main/java/com/example/data/sync/SyncApiService.kt) | Retrofit interface. Defines `POST /sync` with `SyncPayload` body and `SyncResponse` return. Moshi handles serialization. |
+| [`LocalDevServer.kt`](app/src/main/java/com/example/data/sync/LocalDevServer.kt) | Socket-based HTTP server on port `12345`. Handles `GET /api/status`, `/api/users`, `/api/events`. Emits CORS headers. Runs on a background thread. |
 
 ---
 
 ### Layer 7 — Android Manifest & Resources
 
-| File | GitHub Link | Role |
-|---|---|---|
-| `AndroidManifest.xml` | [`app/src/main/AndroidManifest.xml`](app/src/main/AndroidManifest.xml) | Declares permissions (`CAMERA`, `INTERNET`, `ACCESS_FINE_LOCATION`), registers `MainActivity`, `FaceAuthContentProvider`, and sets `android:usesCleartextTraffic="true"` for local HTTP dev server. |
-| `res/values/strings.xml` | [`app/src/main/res/values/strings.xml`](app/src/main/res/values/strings.xml) | App name and string resources. |
-| `res/values/themes.xml` | [`app/src/main/res/values/themes.xml`](app/src/main/res/values/themes.xml) | Base Activity theme (no title bar, edge-to-edge). |
+| File | Role |
+|---|---|
+| [`AndroidManifest.xml`](app/src/main/AndroidManifest.xml) | Declares `CAMERA`, `INTERNET`, `ACCESS_FINE_LOCATION` permissions. Registers `MainActivity`, `FaceAuthContentProvider`. Sets `usesCleartextTraffic=true` for local HTTP server. |
+| [`res/values/strings.xml`](app/src/main/res/values/strings.xml) | App name and string resources. |
+| [`res/values/themes.xml`](app/src/main/res/values/themes.xml) | Base Activity theme (no title bar, edge-to-edge). |
 
 ---
 
