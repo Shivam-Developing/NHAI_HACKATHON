@@ -10,15 +10,16 @@
 
 1. [System Architecture](#1-system-architecture)
 2. [Key Features](#2-key-features)
-3. [Download & Install APK](#3-download--install-apk)
-4. [Data Lake API Integration](#4-data-lake-api-integration)
-5. [Local Developer REST Server](#5-local-developer-rest-server)
-6. [Identification Model — Technical Deep Dive](#6-identification-model--technical-deep-dive)
-7. [Liveness Detection Protocol](#7-liveness-detection-protocol)
-8. [Background Auto-Sync](#8-background-auto-sync)
-9. [Security Hardening](#9-security-hardening)
-10. [Tech Stack](#10-tech-stack)
-11. [Source Directory Map](#11-source-directory-map)
+3. [🎬 Demo Video](#3-demo-video)
+4. [Download & Install APK](#4-download--install-apk)
+5. [Data Lake API Integration](#5-data-lake-api-integration)
+6. [Local Developer REST Server](#6-local-developer-rest-server)
+7. [Identification Model — Technical Deep Dive](#7-identification-model--technical-deep-dive)
+8. [Liveness Detection Protocol](#8-liveness-detection-protocol)
+9. [Background Auto-Sync](#9-background-auto-sync)
+10. [Security Hardening](#10-security-hardening)
+11. [Tech Stack](#11-tech-stack)
+12. [Source Directory Map](#12-source-directory-map)
 
 ---
 
@@ -85,7 +86,32 @@ The application is built on a clean **MVVM** (Model-View-ViewModel) pattern with
 
 ---
 
-## 3. Download & Install APK
+## 3. 🎬 Demo Video
+
+> Watch the full end-to-end demonstration of **Datalake Face Auth** — covering worker enrollment, 3-phase liveness challenge, offline face identification, and background sync to the Datalake endpoint.
+
+<div align="center">
+
+[![▶️ Watch Demo Video](https://img.shields.io/badge/▶%20Watch%20Demo%20Video-Google%20Drive-blue?style=for-the-badge&logo=google-drive&logoColor=white)](https://drive.google.com/file/d/1ihTKfutqfpl9AkmQo6slHlws5Myiq70w/view?usp=sharing)
+
+**[🎥 Click here to watch the full demo on Google Drive](https://drive.google.com/file/d/1ihTKfutqfpl9AkmQo6slHlws5Myiq70w/view?usp=sharing)**
+
+</div>
+
+### What the demo covers:
+
+| Timestamp | Feature Demonstrated |
+|---|---|
+| `0:00` | App launch, Dashboard overview |
+| `0:15` | Worker face enrollment flow |
+| `0:40` | 3-phase liveness challenge (Blink → Identity → Gesture) |
+| `1:10` | Successful offline authentication |
+| `1:30` | Background auto-sync to Datalake endpoint |
+| `1:50` | Local REST API live query demo |
+
+---
+
+## 4. Download & Install APK
 
 ### Step 1 — Navigate to the GitHub Repository
 
@@ -169,7 +195,7 @@ Tap **"Allow"** for each when prompted.
 
 ---
 
-## 4. Data Lake API Integration
+## 5. Data Lake API Integration
 
 The app integrates with a central **Datalake v3.0** REST endpoint for syncing authentication events from remote field sites. Here is a step-by-step guide to connecting your backend.
 
@@ -319,7 +345,7 @@ Toggle **"Background Auto-Sync"** ON in the Dashboard. The `SyncManager` registe
 
 ---
 
-## 5. Local Developer REST Server
+## 6. Local Developer REST Server
 
 The app embeds a lightweight **Socket-based HTTP server** running on port **12345**, ideal for integrating the app with local web dashboards, audit tools, or companion systems — without needing any external SDK.
 
@@ -433,7 +459,7 @@ val eventCursor = contentResolver.query(
 
 ---
 
-## 6. Identification Model — Technical Deep Dive
+## 7. Identification Model — Technical Deep Dive
 
 ### Pipeline Overview
 
@@ -492,7 +518,7 @@ If TFLite inference fails, a **512-dimensional fallback** activates:
 
 ---
 
-## 7. Liveness Detection Protocol
+## 8. Liveness Detection Protocol
 
 Prevents photo/video replay spoofing through a **3-phase sequential challenge**:
 
@@ -537,7 +563,7 @@ Prevents photo/video replay spoofing through a **3-phase sequential challenge**:
 
 ---
 
-## 8. Background Auto-Sync
+## 9. Background Auto-Sync
 
 ```
 [Auth Event Logged]
@@ -565,7 +591,7 @@ The `SyncManager` class registers a `NetworkRequest` callback at app start. When
 
 ---
 
-## 9. Security Hardening
+## 10. Security Hardening
 
 | Mechanism | Implementation |
 |---|---|
@@ -580,7 +606,7 @@ The `SyncManager` class registers a `NetworkRequest` callback at app start. When
 
 ---
 
-## 10. Tech Stack
+## 11. Tech Stack
 
 | Category | Library / Tool | Version |
 |---|---|---|
@@ -597,7 +623,7 @@ The `SyncManager` class registers a `NetworkRequest` callback at app start. When
 
 ---
 
-## 11. Source Directory Map
+## 12. Source Directory Map
 
 ```
 app/src/main/java/com/example/
